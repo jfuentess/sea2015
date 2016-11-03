@@ -1,14 +1,20 @@
-#
-# Before to compile, load the environment variables to use Cilk Plus
-#
+#!bin/bash
+
+# ToDo: Check queries for -DARCH64
+
+DEFS_SEQ="-std=gnu99 -ffast-math -DNOPARALLEL -DEXTRA"
+DEFS_PAR="-std=gnu99 -ffast-math -DEXTRA"
+DEFS_MEM="-std=gnu99 -ffast-math -DNOPARALLEL -DEXTRA -DMALLOC_COUNT"
+
+gcc -O2 -c bit_array.c
 
 echo "Compiling sequential algorithm ..."
-gcc -O2 -DARCH64 -ffast-math -DNOPARALLEL -o seq_st main.c succinct_tree.c lookup_tables.c util.c basic.c bit_array.c -lm -lrt
+gcc -O2 -o st_seq $DEFS_SEQ main.c util.c bit_array.o succinct_tree.c lookup_tables.c -lrt -lm
 
 echo "Compiling parallel algorithm ..."
-gcc -O2 -DARCH64 -ffast-math -o par_st -fcilkplus -lcilkrts main.c succinct_tree.c lookup_tables.c util.c basic.c bit_array.c -lrt -lm
+gcc -O2 -o st_par $DEFS_PAR main.c util.c bit_array.o succinct_tree.c lookup_tables.c -fcilkplus -lcilkrts -lrt -lm 
 
 echo "Compiling sequential algorithm (Working space) ..."
-gcc -O2 -DARCH64 -ffast-math -DNOPARALLEL -DMALLOC_COUNT -o mem_st *.c -lm -lrt -ldl
-
-echo "Done."
+gcc -c malloc_count.c
+gcc -O2 -std=gnu99 -o st_mem $DEFS_MEM main.c util.c bit_array.o malloc_count.o \
+succinct_tree.c lookup_tables.c -lrt -lm -ldl

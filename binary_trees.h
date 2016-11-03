@@ -43,8 +43,8 @@ long left_sibling(long v) {
   return --v;
 }
 
-long is_leaf(long v) {
-  return (v >= (pow(2,heigh)-1));
+long is_leaf(long v, rmMt* st) {
+  return (v >= st->internal_nodes);
 }
 
 #endif // BINARY_TREES_H

@@ -33,12 +33,75 @@
 
 #include "lookup_tables.h"
 
+struct rmMt_t {
+  unsigned int s; // Chunk size
+  unsigned int k; // arity of the min-max tree
+  unsigned long n; // number of parentheses
+  unsigned int height;
+  unsigned int internal_nodes; // Number of internal nodes
+#ifdef ARCH64
+  unsigned long num_chunks;
+#else
+  unsigned int num_chunks;
+#endif
+  int16_t* e_prime; // num_chunks leaves (it does not need internal nodes)
+  int16_t* m_prime; // num_chunks leaves plus internal nodes
+  int16_t* M_prime; // num_chunks leaves plus internal nodes
+  int16_t* n_prime; // num_chunks leaves plus internal nodes
+
+  // Input bitarray
+  BIT_ARRAY* B;
+};
+
+typedef struct rmMt_t rmMt;
+
 lookup_table *T;
-unsigned int heigh;
+unsigned int height;
 
-void st_create(BIT_ARRAY* B, unsigned long n);
+/* Construction */
 
-int32_t find_close(BIT_ARRAY* B, int32_t i);
-int32_t fwd_search(BIT_ARRAY* B, int32_t i, int8_t excess);
+void free_rmMt(rmMt *);
+rmMt* st_create(BIT_ARRAY *, unsigned long);
+
+void print_rmMt(rmMt *);
+
+/* Operations */
+
+// It returns the position of the closing parenthesis that matches the openning
+// parenthesis at position i. It is defined in the paper of Navarro and Sadakane
+int32_t find_close(rmMt *, int32_t);
+
+// Implementation of the primitive operation fwd_search(P,\pi,i,d)
+// It is defined in the paper of Navarro and Sadakane
+int32_t fwd_search(rmMt *, int32_t, int32_t);
+
+// Implementation of the primitive operation sum(P,\pi,i,j)
+// It is defined in the paper of Navarro and Sadakane
+// It is equivalent to the depth of the ith node or the excess value at ith position
+int32_t sum(rmMt *, int32_t);
+
+// Implementation of the operation rank_{0}(P,i)
+// It is defined in the paper of Navarro and Sadakane
+// To implement it, we use the following corollary:
+// rank_{0}(P,i) = (i+1-sum(P,\pi,0,i))/2
+int32_t rank_0(rmMt *, int32_t);
+
+// Implementation of the operation rank_{1}(P,i)
+// It is defined in the paper of Navarro and Sadakane
+// To implement it, we use the following corollary:
+// rank_{1}(P,i) = (i+1+sum(P,\pi,0,i))/2
+int32_t rank_1(rmMt *, int32_t);
+
+// Implementation of the operation select_{0}(P,i)
+// It is defined in the paper of Navarro and Sadakane
+// To implement it, we use the following corollary:
+// select_{0}(P,i) = min{j|j \ge 0, sum(P,\pi,0,j) = j+1-2i}
+int32_t select_0(rmMt *, int32_t);
+
+// Implementation of the operation select_{1}(P,i)
+// It is defined in the paper of Navarro and Sadakane
+// To implement it, we use the following corollary:
+// select_{1}(P,i) = min{j|j \ge 0, sum(P,\pi,0,j) = 2i-j-1}
+int32_t select_1(rmMt *, int32_t);
 
 #endif // SUCCINCT_TREE_H

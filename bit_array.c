@@ -119,7 +119,7 @@ void bit_array_free(BIT_ARRAY* bitarr) {
 //
 // Methods
 //
-/*void parallel_bit_array_set_bit(BIT_ARRAY* bitarr, bit_index_t b) {
+void parallel_bit_array_set_bit(BIT_ARRAY* bitarr, bit_index_t b) {
 
   word_t old, new;
 
@@ -128,7 +128,8 @@ void bit_array_free(BIT_ARRAY* bitarr) {
       old = bitarr->words[bindex(b)];
       new = old | ((word_t)1 << (boffset(b)));
 
-    } while(!(__atomic_compare_exchange_n(&bitarr->words[bindex(b)], &old, new, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST )));
+    } while(!(__atomic_compare_exchange_n(&bitarr->words[bindex(b)], &old, new,
+    0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST )));
   } else {
     // out of bounds error
     fprintf(stderr, "bit_array.c: bit_array_set_bit() - "
@@ -140,7 +141,30 @@ void bit_array_free(BIT_ARRAY* bitarr) {
     exit(EXIT_FAILURE);
   }
 }
-*/
+
+
+void parallel_or_bit_array_set_bit(BIT_ARRAY* bitarr, bit_index_t b) {
+
+  word_t old, new;
+
+  if ( b >= 0 && b < bitarr->num_of_bits ) {
+
+    bit_index_t desp = b & word_size_1; // b mod word_size
+    word_t mask = (word_t)1 << desp;    
+    __sync_fetch_and_or(&bitarr->words[bindex(b)], mask);
+    
+  } else {
+    // out of bounds error
+    fprintf(stderr, "bit_array.c: bit_array_set_bit() - "
+            "out of bounds error (index: %u; length: %u)\n",
+            b, bitarr->num_of_bits);
+
+    errno = EDOM;
+
+    exit(EXIT_FAILURE);
+  }
+}
+
 
 void bit_array_set_bit(BIT_ARRAY* bitarr, bit_index_t b) {
   if ( b >= 0 && b < bitarr->num_of_bits ) {

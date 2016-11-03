@@ -26,56 +26,33 @@
  * IN THE SOFTWARE.
  *****************************************************************************/
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/time.h>
-#include <time.h>
+#include "bit_array.h"
+#include <math.h>
 
-#include "succinct_tree.h"
-#include "util.h"
-
-int main(int argc, char** argv) {
-
-  struct timespec stime, etime;
-  double time;
-
-  if(argc < 2) {
-    fprintf(stderr, "Usage: %s <input parentheses sequence>\n", argv[0]);
-    exit(EXIT_FAILURE);
-  }
-
-  long n;
-
-  BIT_ARRAY *B = parentheses_to_bits(argv[1], &n);
-
-#ifdef MALLOC_COUNT
-  size_t s_total_memory = malloc_count_total();
-  size_t s_current_memory = malloc_count_current();
-  malloc_reset_peak();
+#ifdef NOPARALLEL
+#define cilk_for for
+#define cilk_spawn
+#define cilk_sync
+#define __cilkrts_get_nworkers() 1
 #else
-  if (clock_gettime(CLOCK_THREAD_CPUTIME_ID , &stime)) {
-    fprintf(stderr, "clock_gettime failed");
-    exit(-1);
-  }
-#endif
-  
-  rmMt *st = st_create(B, n);
-
-#ifdef MALLOC_COUNT
-  size_t e_total_memory = malloc_count_total();
-  size_t e_current_memory = malloc_count_current();
-  printf("%s,%ld,%zu,%zu,%zu,%zu,%zu\n", argv[1], n, s_total_memory,
-  e_total_memory, malloc_count_peak(), s_current_memory, e_current_memory);
-  
-#else
-  if (clock_gettime(CLOCK_THREAD_CPUTIME_ID , &etime)) {
-    fprintf(stderr, "clock_gettime failed");
-    exit(-1);
-  }
-  
-  time = (etime.tv_sec - stime.tv_sec) + (etime.tv_nsec - stime.tv_nsec) / 1000000000.0;
-  printf("%d,%s,%lu,%lf\n", threads, argv[1], n, time);
+#include <cilk/cilk.h>
+#include <cilk/cilk_api.h>
+#include <cilk/common.h>
 #endif
 
-  return EXIT_SUCCESS;
-}
+#ifdef MALLOC_COUNT
+#include "malloc_count.h"
+#endif
+
+
+#define threads  __cilkrts_get_nworkers()
+
+#define min(a,b)	      \
+  ({ __typeof__ (a) _a = (a); \
+      __typeof__ (b) _b = (b); \
+    _a < _b ? _a : _b; })
+
+#define max(a,b) \
+  ({ __typeof__ (a) _a = (a); \
+      __typeof__ (b) _b = (b); \
+    _a > _b ? _a : _b; })

@@ -38,9 +38,12 @@
 #include<stdio.h>
 
 // 64 bit
-typedef unsigned long word_t, word_addr_t, bit_index_t;
+//typedef unsigned long word_t, word_addr_t, bit_index_t;
 // 32 bit
-//typedef unsigned int word_t, word_addr_t, bit_index_t;
+typedef unsigned int word_t, word_addr_t, bit_index_t;
+
+#define word_size sizeof(word_t)*8
+#define word_size_1 word_size-1
 
 struct BIT_ARRAY {
   word_t* words;
@@ -59,6 +62,8 @@ void bit_array_free(BIT_ARRAY* bitarray);
 
 // set a bit (to 1) at position b (thread safe)
 void parallel_bit_array_set_bit(BIT_ARRAY* bitarr, bit_index_t b);
+// set a bit (to 1) at position b (thread safe)
+void parallel_or_bit_array_set_bit(BIT_ARRAY* bitarr, bit_index_t b);
 
 // set a bit (to 1) at position b
 void bit_array_set_bit(BIT_ARRAY* bitarr, bit_index_t b);

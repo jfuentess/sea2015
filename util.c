@@ -28,6 +28,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "util.h"
 
 BIT_ARRAY* parentheses_to_bits(const char* fn, long* n) {
@@ -42,7 +44,7 @@ BIT_ARRAY* parentheses_to_bits(const char* fn, long* n) {
   }
 
   fseek(fp, 0L, SEEK_END);
-  *n = ftell(fp) - 1;
+  *n = ftell(fp);
   
   BIT_ARRAY* B = bit_array_create(*n);
   

@@ -26,11 +26,12 @@
  * IN THE SOFTWARE.
  *****************************************************************************/
 
-#ifndef UTIL_H
-#define UTIL_H
-
-#include "bit_array.h"
+#include "defs.h"
 
 BIT_ARRAY* parentheses_to_bits(const char* fn, long* n);
 
-#endif // UTIL_H
+#ifdef ARCH64
+#define logW 6
+#else
+#define logW 5
+#endif
