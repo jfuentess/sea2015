@@ -322,7 +322,8 @@ int32_t sum(rmMt* st, int32_t idx) {
   return excess;
 }
 
-int32_t check_leaf(rmMt* st, int32_t i, int32_t d) {
+// Check a leaf from left to right
+int32_t check_leaf_r(rmMt* st, int32_t i, int32_t d) {
   int end = (i/st->s+1)*st->s;
   int llimit = (((i)+8)/8)*8;
   int rlimit = (end/8)*8;
@@ -365,8 +366,8 @@ int32_t check_leaf(rmMt* st, int32_t i, int32_t d) {
   return i-1;
 }
 
-
-int32_t check_sibling(rmMt* st, int32_t i, int32_t d) {
+// Check siblings from left to right
+int32_t check_sibling_r(rmMt* st, int32_t i, int32_t d) {
   int llimit = i;
   int rlimit = i+st->s;
   int32_t output;
@@ -405,7 +406,7 @@ int32_t fwd_search(rmMt* st, int32_t i, int32_t d) {
     long j;
 
     // Case 1: Check if the chunk of i contains fwd_search(B, i, target)
-    output = check_leaf(st, i, target);
+    output = check_leaf_r(st, i, target);
     if(output > i)
       return output;
     
@@ -415,7 +416,7 @@ int32_t fwd_search(rmMt* st, int32_t i, int32_t d) {
       // The answer is in the right sibling of the current node
       if(st->m_prime[st->internal_nodes + chunk+1] <= target && target <=
 	 st->M_prime[st->internal_nodes+ chunk+1]) { 
-	output = check_sibling(st, st->s*(chunk+1), target);
+	output = check_sibling_r(st, st->s*(chunk+1), target);
 	if(output >= st->s*(chunk+1))
 	  return output;
       }
@@ -447,9 +448,33 @@ int32_t fwd_search(rmMt* st, int32_t i, int32_t d) {
       }
       
       chunk = node - st->internal_nodes;
-      return check_sibling(st, st->s*chunk, target);
+      return check_sibling_r(st, st->s*chunk, target);
     }
     return -1;
+}
+
+
+// Naive implementation of bwd_search
+int32_t naive_bwd_search(rmMt* st, int32_t i, int32_t d) {
+  int begin = 0;
+  int32_t excess = sum(st, i) + d;
+  int32_t target = excess;
+  int32_t output;
+  int32_t j = 0;
+
+  for(j=i; j >= begin; j--) {
+    excess += 2*bit_array_get_bit(st->B,j)-1;
+    if(excess == target)
+      return j;
+  }
+
+  return -1;
+}
+
+
+// ToDo: Implement it more efficiently
+int32_t bwd_search(rmMt* st, int32_t i, int32_t d) {
+  return naive_bwd_search(st,i,d);
 }
 
 int32_t find_close(rmMt* st, int32_t i){
@@ -457,6 +482,13 @@ int32_t find_close(rmMt* st, int32_t i){
     return -1;
 
   return fwd_search(st, i, 0);
+}
+
+int32_t find_open(rmMt* st, int32_t i){
+  if(bit_array_get_bit(st->B,i) == 1)
+    return -1;
+
+  return bwd_search(st, i, 0);  
 }
 
 int32_t rank_0(rmMt* st, int32_t i) {

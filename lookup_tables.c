@@ -38,12 +38,12 @@ lookup_table* create_lookup_tables() {
       p = 7;
       excess = 0;
       do {
-  	excess += 1-2*((w&(1<<p))>0);
-  	if (excess == x) {
-  	  T->near_bwd_pos[i] = p;
-  	  break;
-  	}
-  	--p;
+      	excess += 1-2*((w&(1<<p))>0);
+      	if (excess == x) {
+      	  T->near_bwd_pos[i] = p;
+      	  break;
+      	}
+      	--p;
       } while (p > -1);
     }
   }

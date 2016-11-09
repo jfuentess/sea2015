@@ -67,13 +67,21 @@ void print_rmMt(rmMt *);
 
 /* Operations */
 
-// It returns the position of the closing parenthesis that matches the openning
+// It returns the position of the closing parenthesis that matches the opening
 // parenthesis at position i. It is defined in the paper of Navarro and Sadakane
 int32_t find_close(rmMt *, int32_t);
+
+// It returns the position of the opening parenthesis that matches the closing
+// parenthesis at position i. It is defined in the paper of Navarro and Sadakane
+int32_t find_open(rmMt *, int32_t);
 
 // Implementation of the primitive operation fwd_search(P,\pi,i,d)
 // It is defined in the paper of Navarro and Sadakane
 int32_t fwd_search(rmMt *, int32_t, int32_t);
+
+// Implementation of the primitive operation bwd_search(P,\pi,i,d)
+// It is defined in the paper of Navarro and Sadakane
+int32_t bwd_search(rmMt *, int32_t, int32_t);
 
 // Implementation of the primitive operation sum(P,\pi,i,j)
 // It is defined in the paper of Navarro and Sadakane
