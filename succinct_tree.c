@@ -550,7 +550,7 @@ int32_t select_0(rmMt* st, int32_t i) {
   int32_t excess = 0;
 
   for (j=0; j < st->n; j++) {
-    excess += 1-bit_array_get_bit(st->bit_array,j);
+    excess += 1-bit_array_get_bit(st->B,j);
     if (excess == i)
       return j;
   }
@@ -569,10 +569,21 @@ int32_t select_1(rmMt* st, int32_t i) {
   int32_t excess = 0;
 
   for (j=0; j < st->n; j++) {
-    excess += bit_array_get_bit(st->bit_array,j);
+    excess += bit_array_get_bit(st->B,j);
     if (excess == i)
       return j;
   }
 
     return -1;
+}
+
+int32_t match(rmMt* st, int32_t i) {
+  if(bit_array_get_bit(st->B,i))
+    return find_close(st, i);
+  else
+    return find_open(st, i);
+}
+
+int32_t parent_t(rmMt* st, int32_t i) {
+  return bwd_search(st, i, 2);
 }

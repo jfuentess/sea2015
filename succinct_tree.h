@@ -112,4 +112,8 @@ int32_t select_0(rmMt *, int32_t);
 // select_{1}(P,i) = min{j|j \ge 0, sum(P,\pi,0,j) = 2i-j-1}
 int32_t select_1(rmMt *, int32_t);
 
+int32_t match(rmMt *, int32_t);
+
+int32_t parent_t(rmMt *, int32_t);
+
 #endif // SUCCINCT_TREE_H
