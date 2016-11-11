@@ -457,8 +457,8 @@ int32_t fwd_search(rmMt* st, int32_t i, int32_t d) {
 // Naive implementation of bwd_search
 int32_t naive_bwd_search(rmMt* st, int32_t i, int32_t d) {
   int begin = 0;
-  int32_t excess = sum(st, i) + d;
-  int32_t target = excess;
+  int32_t excess = sum(st, i);
+  int32_t target = excess + d;
   int32_t output;
   int32_t j = 0;
 
@@ -585,5 +585,7 @@ int32_t match(rmMt* st, int32_t i) {
 }
 
 int32_t parent_t(rmMt* st, int32_t i) {
+  if(!bit_array_get_bit(st->B,i))
+    i = find_open(st, i);
   return bwd_search(st, i, 2);
 }
