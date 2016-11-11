@@ -540,41 +540,37 @@ int32_t check_chunk(rmMt* st, int32_t i, int32_t d) {
 }
 
 // ToDo: Implement it more efficiently
-int32_t select_0(rmMt* st, int32_t i){
+int32_t select_0(rmMt* st, int32_t i) {
+  if(i < 1)
+    return -1;
 
   int32_t j = 0;
+  int32_t llimit = 0;
+  int32_t rlimit = st->n;
+  int32_t excess = 0;
 
-  // The answer is after the position 2*i-1
-  int32_t excess = sum(st,2*i-1);
-
-  // Note: The answer is not beyond the position 2*i-1+depth_max, where
-  // depth_max is the maximal depth (excess) of the input tree
-  int32_t llimit = 2*i-1;
-  int32_t rlimit = llimit + st->M_prime[0];
-  int32_t d = 0;
-
-  for (j=llimit+1; j <=rlimit; ++j,++d) {
-    if (excess == d)
-      return j-1;
-    excess += 2*bit_array_get_bit(st->B,j)-1;
+  for (j=0; j < st->n; j++) {
+    excess += 1-bit_array_get_bit(st->bit_array,j);
+    if (excess == i)
+      return j;
   }
 
     return -1;
 }
 
 // ToDo: Implement it more efficiently
-int32_t select_1(rmMt* st, int32_t i){
+int32_t select_1(rmMt* st, int32_t i) {
+  if(i < 1)
+    return -1;
+  
   int32_t j = 0;
-
-  // Note: The answer is in the range [0,2*i-1] not beyond the position 2*i-1
-  int32_t excess = 0;
   int32_t llimit = 0;
-  int32_t rlimit = 2*i-1;
-  int32_t d = 2*i-1;
+  int32_t rlimit = st->n;
+  int32_t excess = 0;
 
-  for (j=llimit; j <=rlimit; ++j,--d) {
-    excess += 2*bit_array_get_bit(st->B,j)-1;
-    if (excess == d)
+  for (j=0; j < st->n; j++) {
+    excess += bit_array_get_bit(st->bit_array,j);
+    if (excess == i)
       return j;
   }
 
