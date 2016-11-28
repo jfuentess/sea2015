@@ -127,9 +127,15 @@ rmMt* st_create(BIT_ARRAY* B, unsigned long n) {
     for(chunk = 0; chunk < chunk_limit; chunk++) {
       int16_t num_mins = 1; // Number of occurrences of the minimum value in the chunk
       unsigned int llimit = 0, ulimit = 0;
+      unsigned int global_chunk = thread*chunks_per_thread+chunk;
       
       // Compute the limits of the current chunk
-      if(thread == (num_threads - 1) && chunk == (chunk_limit-1) && n % (st->num_chunks * st->s) != 0){
+      if(st->num_chunks-1 < global_chunk) {
+	llimit = 0;
+	ulimit = 0;
+      }
+      else if(global_chunk == st->num_chunks-1 && chunk == (chunk_limit-1) && n
+	      % (st->num_chunks * st->s) != 0){
 	llimit = thread*chunks_per_thread*st->s+(st->s*chunk);
 	ulimit = n;
       }
