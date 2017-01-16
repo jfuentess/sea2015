@@ -104,7 +104,12 @@ rmMt* st_create(BIT_ARRAY* B, unsigned long n) {
   /*
    * STEP 2: Computation of arrays e', m', M' and n'
    */
-  unsigned int num_threads = __cilkrts_get_nworkers();
+  unsigned int num_threads;
+  if(st->num_chunks < threads)
+    num_threads = st->num_chunks;
+  else
+    num_threads = threads;
+
   // Each thread works on 'chunks_per_thread' consecutive chunks of B 
   unsigned int chunks_per_thread = ceil((double)st->num_chunks/num_threads);
   
@@ -144,6 +149,8 @@ rmMt* st_create(BIT_ARRAY* B, unsigned long n) {
 	ulimit = llimit + st->s;
 	if(st->n < st->s)
 	  ulimit = n;
+	if(ulimit > st->n)
+	  ulimit = st->n;
       }
       
       unsigned int symbol=0;
@@ -173,10 +180,12 @@ rmMt* st_create(BIT_ARRAY* B, unsigned long n) {
 	}
       }
 
-      st->e_prime[thread*chunks_per_thread+chunk] = partial_excess;
-      st->m_prime[st->internal_nodes + thread*chunks_per_thread+chunk] = min;
-      st->M_prime[st->internal_nodes + thread*chunks_per_thread+chunk] = max;
-      st->n_prime[st->internal_nodes + thread*chunks_per_thread+chunk] = num_mins;
+      if(global_chunk < st->num_chunks) {
+	st->e_prime[thread*chunks_per_thread+chunk] = partial_excess;
+	st->m_prime[st->internal_nodes + thread*chunks_per_thread+chunk] = min;
+	st->M_prime[st->internal_nodes + thread*chunks_per_thread+chunk] = max;
+	st->n_prime[st->internal_nodes + thread*chunks_per_thread+chunk] = num_mins;
+      }
     }
   }
 
@@ -185,7 +194,12 @@ rmMt* st_create(BIT_ARRAY* B, unsigned long n) {
    */
   
   for(unsigned int thread=1; thread < num_threads-1; thread++) {
-    st->e_prime[thread*chunks_per_thread+chunks_per_thread-1] += st->e_prime[(thread-1)*chunks_per_thread+chunks_per_thread-1];
+    unsigned int global_chunk = thread*chunks_per_thread+chunks_per_thread-1;
+    
+    if(global_chunk < st->num_chunks) {  
+      st->e_prime[global_chunk] +=
+	st->e_prime[(thread-1)*chunks_per_thread+chunks_per_thread-1];
+    }
   }  
 
   cilk_for(unsigned int thread=1; thread < num_threads; thread++) {
@@ -195,16 +209,22 @@ rmMt* st_create(BIT_ARRAY* B, unsigned long n) {
     if(thread == num_threads-1)
       ul = st->num_chunks - (num_threads-1)*chunks_per_thread;
     
-   /*
+    unsigned int global_chunk = thread*chunks_per_thread+chunks_per_thread-1;
+
+    /*
      * Note 1: Thread 0 does not need to update their excess values
      * Note 2:Thread 0 does not need to update the minimum value of its first chunk
      */
-    for(chunk=0; chunk < ul; chunk++) {
-      if((thread == num_threads-1) || (chunk < chunks_per_thread -1))
-      	st->e_prime[thread*chunks_per_thread+chunk] += st->e_prime[(thread-1)*chunks_per_thread+chunks_per_thread-1];
-      st->m_prime[st->internal_nodes + thread*chunks_per_thread+chunk] += st->e_prime[(thread-1)*chunks_per_thread+chunks_per_thread-1];
-      st->M_prime[st->internal_nodes + thread*chunks_per_thread+chunk] += st->e_prime[(thread-1)*chunks_per_thread+chunks_per_thread-1];
-      
+    if(global_chunk < st->num_chunks) {
+      for(chunk=0; chunk < ul; chunk++) {
+	if((thread == num_threads-1) || (chunk < chunks_per_thread -1))
+	  st->e_prime[thread*chunks_per_thread+chunk] +=
+	    st->e_prime[(thread-1)*chunks_per_thread+chunks_per_thread-1]; 
+	st->m_prime[st->internal_nodes + thread*chunks_per_thread+chunk] +=
+	  st->e_prime[(thread-1)*chunks_per_thread+chunks_per_thread-1]; 
+	st->M_prime[st->internal_nodes + thread*chunks_per_thread+chunk] +=
+	  st->e_prime[(thread-1)*chunks_per_thread+chunks_per_thread-1]; 
+      }
     }
   }
     
@@ -218,8 +238,6 @@ rmMt* st_create(BIT_ARRAY* B, unsigned long n) {
 						 that will be computed in parallel at level p_level.
 						 num_subtrees is O(num_threads) */
   
-  //unsigned int subtree = 0;
-
   uint total_chunks = st->internal_nodes + st->num_chunks;
   cilk_for(unsigned int subtree = 0; subtree < num_subtrees; subtree++) {
       for(int lvl = st->height-1; lvl >= p_level; lvl--){ //The current level that is being constructed.
@@ -231,7 +249,6 @@ rmMt* st_create(BIT_ARRAY* B, unsigned long n) {
   									    //Note: It should be less than the offset
   	unsigned int lchild = pos*st->k+1, rchild = (pos+1)*st->k; //Range of children of 'node' in the final array
 	
-  	/* for(unsigned int child = lchild; (child <= rchild) && (child < st->num_chunks); child++) { */
   	for(unsigned int child = lchild; (child <= rchild) && (child <
   	total_chunks); child++) {	  
   	  if(child == lchild){// first time
@@ -408,7 +425,7 @@ int32_t fwd_search(rmMt* st, int32_t i, int32_t d) {
     int32_t target = sum(st, i) + d;
     
     int chunk = i / st->s;
-    int32_t output;
+    int32_t output = i;
     long j;
 
     // Case 1: Check if the chunk of i contains fwd_search(B, i, target)
@@ -448,7 +465,7 @@ int32_t fwd_search(rmMt* st, int32_t i, int32_t d) {
 	if (!(st->m_prime[node] <= target-1 && target-1 <= st->M_prime[node])) {
 	  node = right_sibling(node); // choose right child == right sibling of the left child
 	  if(st->m_prime[node] > target-1 || target-1 > st->M_prime[node]) {
-	    return -1;
+	    return i;
 	  }
 	}
       }
@@ -456,32 +473,161 @@ int32_t fwd_search(rmMt* st, int32_t i, int32_t d) {
       chunk = node - st->internal_nodes;
       return check_sibling_r(st, st->s*chunk, target);
     }
-    return -1;
+    return output;
 }
 
 
-// Naive implementation of bwd_search
-int32_t naive_bwd_search(rmMt* st, int32_t i, int32_t d) {
-  int begin = 0;
-  int32_t excess = sum(st, i);
-  int32_t target = excess + d;
+// Check a leaf from right to left
+int32_t check_leaf_l(rmMt* st, int32_t i, int32_t d) {
+  int rlimit = (i/8)*8;
+  int begin = (i/st->s)*st->s;
+  int llimit = ((begin+8)/8)*8;
+
+  if(llimit > rlimit)
+    llimit = rlimit;
+
+  int32_t excess = d;
   int32_t output;
   int32_t j = 0;
 
-  for(j=i; j >= begin; j--) {
+  for(j=i; j >= max(rlimit, llimit); j--){
     excess += 2*bit_array_get_bit(st->B,j)-1;
-    if(excess == target)
+    if(excess == d)
       return j;
   }
 
-  return -1;
+  for(j = rlimit-8; j >= llimit; j-=8) {
+    int32_t desired = excess - d; // desired value must belongs to the range [-8,8]
+    
+#ifdef ARCH64
+    int32_t sum_idx = (((st->B)->words[j>>logW]) & (0xFFL<<(j&(word_size-1)))) >> (j&(word_size-1));
+#else
+    int32_t sum_idx = (((st->B)->words[j>>logW]) & (0xFF<<(j&(word_size-1)))) >> (j&(word_size-1));
+#endif
+
+    if (desired >= -8 && desired <= 8) {
+      uint16_t ii = (desired+8<<8) + sum_idx;
+      
+      int8_t x = T->near_bwd_pos[ii];
+      if(x < 8)
+	return j+x;
+    }
+
+    excess += T->word_sum[sum_idx];
+  }
+
+  for (j=min(llimit,rlimit)-1; j >= begin; j--) {
+    excess += 2*bit_array_get_bit(st->B,j)-1;
+    if (excess == d) {
+      return j;
+    }
+  }
+  
+  return i;
 }
 
+// Check a left sibling
+int32_t check_sibling_l(rmMt* st, int32_t i, int32_t d) {
+  int llimit = i;
+  int rlimit = i+st->s;
 
-// ToDo: Implement it more efficiently
+  int32_t excess = st->e_prime[i/st->s];
+  int32_t output;
+  int32_t j = 0;
+
+  for(j = rlimit-8; j >= llimit; j-=8) {
+    int32_t desired =  d - excess; // desired value must belongs to the range [-8,8]
+    
+#ifdef ARCH64
+    int32_t sum_idx = (((st->B)->words[j>>logW]) & (0xFFL<<(j&(word_size-1)))) >> (j&(word_size-1));
+#else
+    int32_t sum_idx = (((st->B)->words[j>>logW]) & (0xFF<<(j&(word_size-1)))) >> (j&(word_size-1));
+#endif
+    if (desired >= -8 && desired <= 8) {
+      uint16_t ii = (desired+8<<8) + sum_idx;
+      
+      int8_t x = T->near_bwd_pos[ii];
+      if(x < 8)
+	return j+x;
+    }
+    excess -= T->word_sum[sum_idx];
+  }
+  
+  return i-1;
+}
+
 int32_t bwd_search(rmMt* st, int32_t i, int32_t d) {
-  return naive_bwd_search(st,i,d);
+  int32_t excess = sum(st, i);
+  int32_t target = excess + d;
+
+  int chunk = i / st->s;
+  int32_t output = i;
+  long j;
+
+  // Case 1: Check if the chunk of i contains bwd_search(bit_array, i, target)
+  output = check_leaf_l(st, i, target);
+  if(output < i)
+    return output;
+  
+  // Case 2: The answer is not in the chunk of i, but it is in its sibling
+  // (assuming a binary tree, if i%2==1, then its left sibling is at position i-1)
+  if(chunk%2 == 1) { // The current chunk has a left sibling
+    // The answer is in the left sibling of the current node
+    if(st->m_prime[st->internal_nodes + chunk - 1] <= target+1 && target+1 <=
+       st->M_prime[st->internal_nodes + chunk - 1]) {
+      
+      output = check_sibling_l(st, st->s*(chunk-1), target);
+      if(output >= st->s*(chunk-1))
+  	return output;
+    }
+  }
+
+  // Case 3: It is necessary up and then down in the min-max tree
+  long node = parent(chunk + st->internal_nodes); // Initial node
+  // Go up the tree
+  while (!is_root(node)) {
+    if (is_right_child(node)) { // if the node is a left child
+      node = left_sibling(node); // choose right sibling
+      
+      if (st->m_prime[node] <= target && target <= st->M_prime[node])
+	break;      
+    }
+    node = parent(node); // choose parent
+  }
+
+  // Go down the tree
+  if (!is_root(node)) { // found solution for the query
+    while (!is_leaf(node, st->internal_nodes)) {
+      node = right_child(node); // choose right child
+
+      if (!(st->m_prime[node] <= target && target <= st->M_prime[node])) {
+	node = left_sibling(node); // choose left child == left sibling of the	right child
+	if(st->m_prime[node] > target || target > st->M_prime[node])
+	  return i;
+      }
+    }
+
+    chunk = node - st->internal_nodes;
+
+    // Special case: if the result is at the beginning of chunk i, then,
+    // the previous condition will select the chunk i-1
+    if(st->e_prime[chunk] == target) { // If the last value (e') of chunk is equal
+    // to the target, then the answer is in the first position of the next chunk
+
+      return (chunk+1)*st->s;
+    }
+          
+    return check_sibling_l(st, st->s*chunk, target);
+  }
+  else {// Special case: Pair of parentheses wrapping the parentheses sequence
+        //(at positions 0 and n-1)
+    if(i == st->n-1 && excess==0)
+      output = 0;
+  }
+
+  return output;
 }
+
 
 int32_t find_close(rmMt* st, int32_t i){
   if(bit_array_get_bit(st->B,i) == 0)
