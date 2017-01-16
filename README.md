@@ -7,4 +7,4 @@ bash build.sh
 ```
 
 
-For datasets, please visit http://www.inf.udec.cl/~josefuentes/sea2015/
+For datasets, please visit http://www.dcc.uchile.cl/~jfuentess/sea2015
