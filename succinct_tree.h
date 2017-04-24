@@ -1,3 +1,4 @@
+
 /******************************************************************************
  * succinct_tree.h
  *
@@ -33,6 +34,8 @@
 
 #include "lookup_tables.h"
 
+typedef int32_t depth_t;
+
 struct rmMt_t {
   unsigned int s; // Chunk size
   unsigned int k; // arity of the min-max tree
@@ -44,13 +47,13 @@ struct rmMt_t {
 #else
   unsigned int num_chunks;
 #endif
-  int16_t* e_prime; // num_chunks leaves (it does not need internal nodes)
-  int16_t* m_prime; // num_chunks leaves plus internal nodes
-  int16_t* M_prime; // num_chunks leaves plus internal nodes
+  depth_t* e_prime; // num_chunks leaves (it does not need internal nodes)
+  depth_t* m_prime; // num_chunks leaves plus internal nodes
+  depth_t* M_prime; // num_chunks leaves plus internal nodes
   int16_t* n_prime; // num_chunks leaves plus internal nodes
 
   // Input bitarray
-  BIT_ARRAY* B;
+  BIT_ARRAY* bit_array;
 };
 
 typedef struct rmMt_t rmMt;
@@ -60,60 +63,67 @@ unsigned int height;
 
 /* Construction */
 
-void free_rmMt(rmMt *);
-rmMt* st_create(BIT_ARRAY *, unsigned long);
+rmMt* st_create(BIT_ARRAY* B, unsigned long n);
+rmMt* st_create_emM(BIT_ARRAY* B, unsigned long n);
+rmMt* st_create_il(BIT_ARRAY* B, unsigned long n);
 
 void print_rmMt(rmMt *);
 
+unsigned long size_rmMt(rmMt *);
+
 /* Operations */
 
-// It returns the position of the closing parenthesis that matches the opening
+// It returns the position of the closing parenthesis that matches the openning
 // parenthesis at position i. It is defined in the paper of Navarro and Sadakane
-int32_t find_close(rmMt *, int32_t);
+int32_t find_close(rmMt* st, int32_t i);
+int32_t find_close_naive(rmMt* st, int32_t i);
+int32_t find_close_semi(rmMt* st, int32_t i);
 
-// It returns the position of the opening parenthesis that matches the closing
-// parenthesis at position i. It is defined in the paper of Navarro and Sadakane
-int32_t find_open(rmMt *, int32_t);
+int32_t find_open(rmMt* st, int32_t i);
+int32_t find_open_naive(rmMt* st, int32_t i);
+int32_t find_open_semi(rmMt* st, int32_t i);
 
 // Implementation of the primitive operation fwd_search(P,\pi,i,d)
 // It is defined in the paper of Navarro and Sadakane
-int32_t fwd_search(rmMt *, int32_t, int32_t);
-
-// Implementation of the primitive operation bwd_search(P,\pi,i,d)
-// It is defined in the paper of Navarro and Sadakane
-int32_t bwd_search(rmMt *, int32_t, int32_t);
+int32_t fwd_search(rmMt* st, int32_t i, int32_t d);
 
 // Implementation of the primitive operation sum(P,\pi,i,j)
 // It is defined in the paper of Navarro and Sadakane
 // It is equivalent to the depth of the ith node or the excess value at ith position
-int32_t sum(rmMt *, int32_t);
+int32_t sum(rmMt* st, int32_t i);
 
 // Implementation of the operation rank_{0}(P,i)
 // It is defined in the paper of Navarro and Sadakane
 // To implement it, we use the following corollary:
 // rank_{0}(P,i) = (i+1-sum(P,\pi,0,i))/2
-int32_t rank_0(rmMt *, int32_t);
+int32_t rank_0(rmMt* st, int32_t i);
 
 // Implementation of the operation rank_{1}(P,i)
 // It is defined in the paper of Navarro and Sadakane
 // To implement it, we use the following corollary:
 // rank_{1}(P,i) = (i+1+sum(P,\pi,0,i))/2
-int32_t rank_1(rmMt *, int32_t);
+int32_t rank_1(rmMt* st, int32_t i);
 
 // Implementation of the operation select_{0}(P,i)
 // It is defined in the paper of Navarro and Sadakane
 // To implement it, we use the following corollary:
 // select_{0}(P,i) = min{j|j \ge 0, sum(P,\pi,0,j) = j+1-2i}
-int32_t select_0(rmMt *, int32_t);
+int32_t select_0(rmMt* st, int32_t i);
 
 // Implementation of the operation select_{1}(P,i)
 // It is defined in the paper of Navarro and Sadakane
 // To implement it, we use the following corollary:
 // select_{1}(P,i) = min{j|j \ge 0, sum(P,\pi,0,j) = 2i-j-1}
-int32_t select_1(rmMt *, int32_t);
+int32_t select_1(rmMt* st, int32_t i);
 
 int32_t match(rmMt *, int32_t);
+int32_t match_naive(rmMt *, int32_t);
+int32_t match_semi(rmMt *, int32_t);
 
-int32_t parent_t(rmMt *, int32_t);
+int32_t parent_t(rmMt* st, int32_t i);
+int32_t depth(rmMt* st, int32_t i);
+int32_t first_child(rmMt* st, int32_t i);
+int32_t next_sibling(rmMt* st, int32_t i);
+int32_t is_leaf_t(rmMt* st, int32_t i);
 
 #endif // SUCCINCT_TREE_H
